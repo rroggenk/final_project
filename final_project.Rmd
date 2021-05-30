@@ -84,9 +84,23 @@ Create at least three different visualizations exploring the following:
 
 The relationship between instructional expenditures and testing scores, and how this differs by regions
 
+```{r}
+schools_clean %>%
+  ggplot(aes(x = INSTRUCTION_EXPENDITURE, y = TEST_SCORES, color = RACE, shape = SEX)) + 
+  geom_jitter() +
+  facet_wrap(~Region)
+```
 
 
 The distribution of mathematics and reading test scores
+
+```{r}
+schools_clean %>%
+  ggplot(aes(x = TEST_SCORES)) + 
+  geom_histogram() + 
+  facet_wrap(~TEST)
+```
+
 
 How school instructional expenditures and test scores have changed over time, and how this differs by region
 
