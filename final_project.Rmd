@@ -12,6 +12,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(readxl)
 library(kableExtra)
+library(grid)
+library(extrafont)
 ```
 
 ```{r}
@@ -19,8 +21,32 @@ US_schools <- read_excel("US_schools_data.xlsx")
 ```
 
 
+
+# The Data
+The data for this project were pulled from the Urban Institute’s API. The master dataset brings together multiple facets of U.S. education data into one convenient CSV, including data related to student’s race and sex.
+
+These data can be downloaded from Canvas, under US_schools_data.csv.
+
+A more thorough documentation of the variables in the dataset and how they are coded can be found: in this Kaggle project
+
+
+
+# Data Cleaning
+It is often said that 80-90% of what a “data scientist” does is clean and organize data, in preparation for an analysis. I have certainly found this to be true, and you will see why!
+
+As is typical for large collated datasets (datasets that are merged together), these data are in wide format, meaning there are multiple variables spread across the columns. For example, grade, race, and exam are spread across different columns, using prefixes to describe the level of the variable (e.g., G04_WH_A_READING is the grade 4 average reading score for White students).
+
+Hint: The ends_with() function is quite helpful here!
+
+
 ## Data Narrowing
 For this analysis, we are interested in the school expenditure variables (TOTAL_EXPENDITURE, INSTRUCTION_EXPENDITURE, SUPPORT_SERVICES_EXPENDITURE, OTHER_EXPENDITURE, CAPITAL_OUTLAY_EXPENDITURE), and the testing variables (anything ending in READING or MATHEMATICS). Downsize the dataset to only include these variables, as well as the key column identifying the state / year.
+
+
+## Separating Key Column
+The PRIMARY_KEY column contains information for both the state and the year of the observation. Separate this columns into two columns.
+
+Hint: The word() function is quite helpful here!
 
 ```{r}
 #Split the year from the state
@@ -34,25 +60,18 @@ split_year_state<- rename(split_year_state, YEAR = X1, STATE = X2)
 schools_clean <- US_schools %>%
   cbind(split_year_state) %>%
   select(YEAR, STATE,TOTAL_EXPENDITURE, INSTRUCTION_EXPENDITURE, SUPPORT_SERVICES_EXPENDITURE, OTHER_EXPENDITURE, CAPITAL_OUTLAY_EXPENDITURE, ends_with(c("READING", "MATHEMATICS")) )
-  
 ```
-
-```{r}
-schools_clean <- schools_clean %>%
-  pivot_longer(8:47, names_to = c("GRADE", "RACE", "SEX", "TEST"), names_sep ="_", values_to = "TEST_SCORES")
-```
-
-
-## Separating Key Column
-The PRIMARY_KEY column contains information for both the state and the year of the observation. Separate this columns into two columns.
-
-Hint: The word() function is quite helpful here!
 
 
 ## Pivoting Longer
 The grade (04, 08), race (AM, AS, BL, HI, HP, TR, WH), sex (A, F, M), and test (READING, MATHEMATICS) are spread across the columns. We need to pivot these variables to be included in one column each (e.g., grade, race, sex, test).
 
 Hint: the names_sep argument in pivot_longer() is very helpful here!
+
+```{r}
+schools_clean <- schools_clean %>%
+  pivot_longer(8:47, names_to = c("GRADE", "RACE", "SEX", "TEST"), names_sep ="_", values_to = "TEST_SCORES")
+```
 
 
 ## Regional Classification
@@ -79,49 +98,102 @@ Feel free to clean up the values of these variables! Keep in mind that these are
 
 You should also consider what variables you want to be factors, and if there are specific orderings that you would like for them to be displayed in for your visualizations!
 
+```{r, message = FALSE, warning = FALSE}
+schools_clean$SEX[schools_clean$SEX == "A"] = "All"
+schools_clean$SEX[schools_clean$SEX == "F"] = "Female"
+schools_clean$SEX[schools_clean$SEX == "M"] = "Male"
+schools_clean$RACE[schools_clean$RACE == "AM"] = "American Indian or Alaska Native"
+schools_clean$RACE[schools_clean$RACE == "AS"] = "Asian"
+schools_clean$RACE[schools_clean$RACE == "HI"] = "Hispanic/Latino"
+schools_clean$RACE[schools_clean$RACE == "BL"] = "Black or African American"
+schools_clean$RACE[schools_clean$RACE == "WH"] = "White"
+schools_clean$RACE[schools_clean$RACE == "HP"] = "Hawaiian Native/Pacific Islander"
+schools_clean$RACE[schools_clean$RACE == "TR"] = "Two or More Races"
+schools_clean$RACE[schools_clean$RACE == "A"] = "All"
+schools_clean$GRADE[schools_clean$GRADE == "G04"] = 4
+schools_clean$GRADE[schools_clean$GRADE == "G08"] = 8
+```
+
+
+
 # Data Visualization
 Create at least three different visualizations exploring the following:
 
-The relationship between instructional expenditures and testing scores, and how this differs by regions
+##### The relationship between instructional expenditures and testing scores, and how this differs by regions
 
 ```{r}
 schools_clean %>%
-  ggplot(aes(x = INSTRUCTION_EXPENDITURE, y = TEST_SCORES, color = RACE, shape = SEX)) + 
-  geom_jitter() +
-  facet_wrap(~Region)
+  ggplot(aes(x = INSTRUCTION_EXPENDITURE, y = TEST_SCORES, color = Region, shape = SEX)) + 
+  geom_jitter(alpha = 0.5) +
+  facet_wrap(~RACE)
 ```
-
-
-The distribution of mathematics and reading test scores
 
 ```{r}
 schools_clean %>%
-  ggplot(aes(x = TEST_SCORES, fill = SEX)) + 
-  geom_histogram() + 
-  facet_wrap(TEST~RACE)
+  ggplot(aes(x = TEST_SCORES, color = Region)) + 
+  geom_boxplot() +
+  facet_wrap(~RACE)
 ```
 
 
-How school instructional expenditures and test scores have changed over time, and how this differs by region
+##### The distribution of mathematics and reading test scores:
+
+```{r}
+cdPalette <- c("#F1c2bc", "#Ffd5b9", "#Ebffb9", "#B9ffd6", "#B9fff8", "#B9bcff", "#Ffb9fe", "#C6bcbc")
+
+loadfonts(device = "win")
+
+schools_clean %>%
+  ggplot(aes(x = TEST_SCORES, fill = RACE)) + 
+  geom_boxplot() + 
+  facet_wrap(TEST~SEX) + 
+  theme(panel.spacing = unit(0.1, "lines")) + 
+  theme(panel.grid.minor = element_line(colour = "white", size = 1)) +
+  labs(x = "Test Scores", title = "Distribution of Mathematics and Reading Test Scores by Sex and Race", y = "") +
+  annotate("text", x = 150, y = -0.33, label = "All", color = "black", size = 3) +
+  scale_fill_manual(values = cdPalette) +
+  theme(text = element_text(size = 12,  family = "serif")) +
+  theme(axis.ticks = element_blank(), axis.text.y = element_blank())
+```
+
+
+##### How school instructional expenditures and test scores have changed over time, and how this differs by region
+
+```{r}
+schools_clean %>%
+  ggplot(aes(x = YEAR, y = TEST_SCORES)) +
+  geom_boxplot() +
+  facet_wrap(~Region) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_x_discrete(guide = guide_axis(n.dodge=2))
+```
+
 
 Each of these visualizations should also investigate how these relationships differ based on student race and sex.
+
+
 
 # Linear Regression
 Fit two simple linear regression models, (1) investigating the relationship between instructional expenditures and mathematics test scores, and (2) investigating the relationship between instructional expenditures and reading test scores.
 
+
 ## Model Comparison
 For which test does instructional expenditures account for a larger proportion of the variability? How substantial is the difference?
 
+
 ## Multiple Linear Regression
+
 ### Both Tests
 Rather than having separate models, one for reading and one for mathematics, we can instead fit one regression model that includes test as an explanatory variable.
 
 Does this model account for a larger proportion of variability in test scores?
 
+
 ### Additional Variables
 Alright, now that we’ve got a “good” starting model, we can start to add variables. It is clear that the relationship between instructional expenditures and test scores changes over time. So, let’s make a time-series model to account for this.
 
 Include year as a second explanatory variable in your model. How much additional variability in test scores were you able to explain by including year?
+
 
 ## Adjusting for Complexity
 There is a trade off between model “complexity” and an increase in a model’s R2. Unfortunately, even if a variable doesn’t add much to the model, the R2 for that model will still increase. So, we need a different measure that can account for whether the variable(s) explain components of the variability in test scores that weren’t accounted for by other variables.
@@ -131,3 +203,13 @@ This is where adjusted R2 comes in. By “adjusting” the R2, we are essentiall
 Include additional variables in your regression and see how much variability in test scores your model can account for. Use adjusted R2 to decide on what final model your group believes is the “best.”
 
 With your final model, make a visualization that explores the relationships accounted for in your model.
+
+
+
+Citations: 
+https://datavizpyr.com/how-to-dodge-overlapping-text-on-x-axis-labels-in-ggplot2/
+https://stackoverflow.com/questions/12692382/ggplot2-facet-margin
+https://stackoverflow.com/questions/18081746/controlling-both-the-major-and-minor-grid-lines-on-the-y-axis
+https://stackoverflow.com/questions/34522732/changing-fonts-in-ggplot2
+https://statisticsglobe.com/remove-axis-labels-and-ticks-of-ggplot2-plot-in-r
+
