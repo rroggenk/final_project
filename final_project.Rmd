@@ -122,17 +122,37 @@ Create at least three different visualizations exploring the following:
 ##### The relationship between instructional expenditures and testing scores, and how this differs by regions
 
 ```{r}
-schools_clean %>%
-  ggplot(aes(x = INSTRUCTION_EXPENDITURE, y = TEST_SCORES, color = Region, shape = SEX)) + 
-  geom_jitter(alpha = 0.5) +
-  facet_wrap(~RACE)
+plot1 <- schools_clean %>%  
+  ggplot(aes(x = INSTRUCTION_EXPENDITURE, y = TEST_SCORES)) + 
+  geom_jitter(alpha = 0.5, cex = .8, aes(color = SEX)) + 
+  scale_fill_brewer() +
+  geom_smooth(color = "black",fill = "darkgrey", method = "lm") +
+  facet_wrap(~Region, nrow =  3)+
+  labs(x = "Instruction Expenditure", y = "Test Scores", title = "How School Expenditures Impacts Test Scores") +
+  ggtitle("How School Expenditures Impacts Test Scores") +
+  xlab("Instruction Expenditure") + ylab("Test Scores") +
+  theme(text=element_text(size=10, family="Times"), legend.position = "right") 
+
+plot1 + scale_colour_brewer(palette = "Set2") 
 ```
 
 ```{r}
-schools_clean %>%
-  ggplot(aes(x = TEST_SCORES, color = Region)) + 
-  geom_boxplot() +
-  facet_wrap(~RACE)
+schools_sample <- schools_clean %>%
+  sample_n(20000, na.rm = F) %>%
+  filter(SEX != "All")
+
+plot2 <- schools_sample %>% 
+  ggplot(aes(x = INSTRUCTION_EXPENDITURE, y = TEST_SCORES)) + 
+  geom_jitter(cex = .8, aes(color = SEX)) + 
+  scale_fill_brewer() +
+  geom_smooth(color = "black",fill = "darkgrey", method = "lm") +
+  facet_wrap(~Region, nrow =  3)+
+  labs(x = "Instruction Expenditure", y = "Test Scores", title = "How School Expenditures Impacts Test Scores") +
+  ggtitle("How School Expenditures Impacts Test Scores") +
+  xlab("Instruction Expenditure") + ylab("Test Scores") +
+  theme(text=element_text(size=10, family="Times"), legend.position = "right") 
+
+plot2 + scale_colour_brewer(palette = "Set2") 
 ```
 
 
@@ -168,7 +188,6 @@ schools_clean %>%
   scale_x_discrete(guide = guide_axis(n.dodge=2))
 ```
 
-
 Each of these visualizations should also investigate how these relationships differ based on student race and sex.
 
 
@@ -203,6 +222,22 @@ This is where adjusted R2 comes in. By “adjusting” the R2, we are essentiall
 Include additional variables in your regression and see how much variability in test scores your model can account for. Use adjusted R2 to decide on what final model your group believes is the “best.”
 
 With your final model, make a visualization that explores the relationships accounted for in your model.
+
+
+
+# Visualizing Simulations from the Model
+With your chosen model, generate predictions using the predict() function. Then, add random errors to the predictions, using the residual standard error estimated from the linear regression model (acquired with sigma()).
+
+Now, compare these simulated observations to the observed data. Generate the same plot of the relationships modeled by the linear regression, for the simulated data (that you made at the end of Part One).
+
+Plot the visualization of the observed data and the simulated data side-by-side. Discuss how the simulated data are similar and / or different to the observed data.
+
+# Generating Multiple Predictive Checks
+Generate at least 1000 simulated datasets that you expect would have been observed if your regression model adequately described the relationship between instructional expenditures and test scores.
+
+Regress the observed dataset against each simulated dataset (e.g. lm(observed ~ simulated)), and keep the R2 from the regression. Keep in mind that lm() discards any observations with missing values (NA) for any of the variables included in your model. So, you will need to remove these observations before joining with the observed data.
+
+Plot the distribution of the R2 values from the regressions. Discuss the implications of the values shown in the plot (i.e., How well does your model accuracy describe the relationships present in the data?).
 
 
 
