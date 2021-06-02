@@ -14,6 +14,7 @@ library(readxl)
 library(kableExtra)
 library(grid)
 library(extrafont)
+library(broom)
 ```
 
 ```{r}
@@ -98,6 +99,20 @@ Feel free to clean up the values of these variables! Keep in mind that these are
 
 You should also consider what variables you want to be factors, and if there are specific orderings that you would like for them to be displayed in for your visualizations!
 
+```{r}
+
+sex_fct <- schools_clean$SEX
+
+sex_fct <- fct_recode(sex_fct, All = "A", Male = "M", Female = "F")
+
+schools_clean <- schools_clean %>% mutate(SEX = sex_fct)
+
+```
+
+```{r}
+schools_clean <- schools_clean %>% mutate(GRADE = str_extract(GRADE, "[1-9]"))
+```
+
 ```{r, message = FALSE, warning = FALSE}
 schools_clean$SEX[schools_clean$SEX == "A"] = "All"
 schools_clean$SEX[schools_clean$SEX == "F"] = "Female"
@@ -122,11 +137,11 @@ Create at least three different visualizations exploring the following:
 ##### The relationship between instructional expenditures and testing scores, and how this differs by regions
 
 ```{r}
-plot1 <- schools_clean %>%  
+plot1 <- schools_clean %>% 
   ggplot(aes(x = INSTRUCTION_EXPENDITURE, y = TEST_SCORES)) + 
-  geom_jitter(alpha = 0.5, cex = .8, aes(color = SEX)) + 
+  geom_jitter(cex = .8, aes(color = RACE), alpha = 0.5) + 
   scale_fill_brewer() +
-  geom_smooth(color = "black",fill = "darkgrey", method = "lm") +
+  geom_smooth(color = "black",fill = "darkgrey", method = "lm", se = FALSE) +
   facet_wrap(~Region, nrow =  3)+
   labs(x = "Instruction Expenditure", y = "Test Scores", title = "How School Expenditures Impacts Test Scores") +
   ggtitle("How School Expenditures Impacts Test Scores") +
@@ -145,7 +160,7 @@ plot2 <- schools_sample %>%
   ggplot(aes(x = INSTRUCTION_EXPENDITURE, y = TEST_SCORES)) + 
   geom_jitter(cex = .8, aes(color = SEX)) + 
   scale_fill_brewer() +
-  geom_smooth(color = "black",fill = "darkgrey", method = "lm") +
+  geom_smooth(color = "black",fill = "darkgrey", method = "lm", se = FALSE) +
   facet_wrap(~Region, nrow =  3)+
   labs(x = "Instruction Expenditure", y = "Test Scores", title = "How School Expenditures Impacts Test Scores") +
   ggtitle("How School Expenditures Impacts Test Scores") +
@@ -176,6 +191,27 @@ schools_clean %>%
   theme(axis.ticks = element_blank(), axis.text.y = element_blank())
 ```
 
+```{r}
+schools_clean %>%
+  ggplot(aes(x= SEX, y = TEST_SCORES, color = SEX)) + 
+  geom_jitter(alpha = 0.2) +
+  geom_boxplot(alpha = 0.8) + 
+  labs(y= "Test Score", title = "Distribution of Test Scores by Sex") + 
+  scale_colour_manual(values = c("Dark Green", "Pink", "Light Blue")) + 
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    panel.grid.major = element_blank(),
+    axis.title.x = element_blank(),
+    legend.position = "none"
+    ) +
+  annotate("text", x = 3, y = 177, label = "Male") + 
+  annotate("text", x = 2, y = 180, label = "Female") + 
+  annotate("text", x = 1, y = 170, label = "All") + 
+  facet_wrap(~TEST)
+```
+
 
 ##### How school instructional expenditures and test scores have changed over time, and how this differs by region
 
@@ -195,15 +231,45 @@ Each of these visualizations should also investigate how these relationships dif
 # Linear Regression
 Fit two simple linear regression models, (1) investigating the relationship between instructional expenditures and mathematics test scores, and (2) investigating the relationship between instructional expenditures and reading test scores.
 
+```{r}
+expend_math <- schools_clean %>% filter(TEST == "MATHEMATICS") %>% lm(TEST_SCORES ~ INSTRUCTION_EXPENDITURE, data = .)
+
+expend_reading <- schools_clean %>% filter(TEST == "READING") %>% lm(TEST_SCORES ~ INSTRUCTION_EXPENDITURE, data = .)
+```
+
 
 ## Model Comparison
 For which test does instructional expenditures account for a larger proportion of the variability? How substantial is the difference?
+
+
+##### Relationship between instructional expenditures and *mathematics* test scores 
+```{r MathReg}
+summary(expend_math)
+```
+
+
+##### Relationship between instructional expenditures and *reading* test scores 
+
+```{r ReadingReg}
+summary(expend_reading)
+```
+
+From the two models that we created, the math model resulted in instruction expenditure accounting for 0.426% of the variability in test scores while the reading model resulted in instruction expenditure accounting for 0.036% of the variability in test scores 
 
 
 ## Multiple Linear Regression
 
 ### Both Tests
 Rather than having separate models, one for reading and one for mathematics, we can instead fit one regression model that includes test as an explanatory variable.
+
+```{r MLR}
+schools_clean  %>% 
+  lm(
+    TEST_SCORES ~ INSTRUCTION_EXPENDITURE + TEST, data = .
+    ) %>% 
+  summary()
+```
+
 
 Does this model account for a larger proportion of variability in test scores?
 
@@ -213,6 +279,12 @@ Alright, now that we’ve got a “good” starting model, we can start to add v
 
 Include year as a second explanatory variable in your model. How much additional variability in test scores were you able to explain by including year?
 
+```{r}
+schools_clean  %>% mutate(YEAR = as.numeric(YEAR)) %>% 
+  lm(TEST_SCORES ~ INSTRUCTION_EXPENDITURE + TEST + YEAR  , data = .) %>%
+  summary()
+```
+
 
 ## Adjusting for Complexity
 There is a trade off between model “complexity” and an increase in a model’s R2. Unfortunately, even if a variable doesn’t add much to the model, the R2 for that model will still increase. So, we need a different measure that can account for whether the variable(s) explain components of the variability in test scores that weren’t accounted for by other variables.
@@ -221,23 +293,108 @@ This is where adjusted R2 comes in. By “adjusting” the R2, we are essentiall
 
 Include additional variables in your regression and see how much variability in test scores your model can account for. Use adjusted R2 to decide on what final model your group believes is the “best.”
 
+```{r}
+final_model <- schools_clean  %>% 
+  mutate(YEAR = as.numeric(YEAR)) %>% 
+  lm(
+    TEST_SCORES ~ INSTRUCTION_EXPENDITURE + TEST + YEAR + GRADE + Region , data = .
+    )
+summary(final_model)
+```
+
+
 With your final model, make a visualization that explores the relationships accounted for in your model.
 
+```{r}
+# creating a dataset that removes na values to match the number of observations with the regressions.
+schools_model <- schools_clean %>% 
+  filter(!is.na(TEST_SCORES)) %>% 
+  filter(!is.na(INSTRUCTION_EXPENDITURE)) %>% 
+  filter(!is.na(YEAR))
+```
 
 
-# Visualizing Simulations from the Model
 With your chosen model, generate predictions using the predict() function. Then, add random errors to the predictions, using the residual standard error estimated from the linear regression model (acquired with sigma()).
 
-Now, compare these simulated observations to the observed data. Generate the same plot of the relationships modeled by the linear regression, for the simulated data (that you made at the end of Part One).
+```{r}
+# saving the predicted values and the standard deviation
+model_pred <- predict(final_model)
+model_sig <- sigma(final_model)
+```
 
+Tip: Measure the R-squared between expected vs observed values, SSE, and RMSE
+
+
+```{r}
+noise <- function(x, mean = 0, sd){
+  n <- length(x)
+  new_data <- x + rnorm(n, mean, sd)
+  return(new_data)
+}
+```
+
+```{r}
+schools_model <- schools_model %>% 
+  mutate(
+    predicted = noise(model_pred, sd = model_sig)
+                   )
+```
+
+
+Now, compare these simulated observations to the observed data. Generate the same plot of the relationships modeled by the linear regression, for the simulated data (that you made at the end of Part One).
 Plot the visualization of the observed data and the simulated data side-by-side. Discuss how the simulated data are similar and / or different to the observed data.
 
-# Generating Multiple Predictive Checks
-Generate at least 1000 simulated datasets that you expect would have been observed if your regression model adequately described the relationship between instructional expenditures and test scores.
+```{r}
 
-Regress the observed dataset against each simulated dataset (e.g. lm(observed ~ simulated)), and keep the R2 from the regression. Keep in mind that lm() discards any observations with missing values (NA) for any of the variables included in your model. So, you will need to remove these observations before joining with the observed data.
+schools_model %>% 
+  ggplot(aes(INSTRUCTION_EXPENDITURE, TEST_SCORES, color = TEST, linetype = GRADE)) + 
+  geom_jitter(alpha = 0.4) +
+  geom_smooth(method = "lm") + 
+  facet_wrap(~YEAR) + 
+  labs(x = "Instruction Expenditure", y = "Test Scores", title = "Regression with Observed Values", color = "Test", linetype = "Grade" )
 
-Plot the distribution of the R2 values from the regressions. Discuss the implications of the values shown in the plot (i.e., How well does your model accuracy describe the relationships present in the data?).
+schools_model %>% 
+  ggplot(aes(INSTRUCTION_EXPENDITURE, predicted, color = TEST, linetype = GRADE)) + 
+  geom_jitter(alpha = 0.4) +
+  geom_smooth(method = "lm") + 
+  facet_wrap(~YEAR) + 
+  labs(x = "Instruction Expenditure", y = "Predicted Test Scores", title = "Regression With Predicted Values", color = "Test", linetype = "Grade" )
+```
+
+
+```{r}
+nsims <- 1000
+
+sims <- map_dfc(1:nsims,
+                ~tibble(sim = noise(model_pred, sd = model_sig))) 
+sims <- schools_model %>% 
+  select(TEST_SCORES) %>% 
+  bind_cols(sims)
+```
+```{r}
+obs_vs_sim <- function(df){
+  lm(penguins$bill_length_mm ~ x)
+}
+
+sim_r_sq <- sims %>% 
+  map( ~lm(TEST_SCORES ~ .x, data = sims)) %>% 
+  map(glance) %>% 
+  map_dbl(~.$r.squared) %>% data.frame()
+
+sim_r_sq <- sim_r_sq[names(sim_r_sq) != "bill_length_mm"]
+```
+
+```{r}
+tibble(sims = sim_r_sq) %>% 
+  ggplot(aes(x = sims)) + 
+  geom_histogram(binwidth = 0.0105)
+```
+
+
+```{r}
+sim_r_sq %>% ggplot(aes(sim_r_sq)) + geom_density() + xlim(0.7, 0.73)
+```
+
 
 
 
