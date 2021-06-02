@@ -136,38 +136,18 @@ Create at least three different visualizations exploring the following:
 
 ##### The relationship between instructional expenditures and testing scores, and how this differs by regions
 
-```{r}
-plot1 <- schools_clean %>% 
+```{r, message = FALSE, warning = FALSE}
+schools_clean %>% 
   ggplot(aes(x = INSTRUCTION_EXPENDITURE, y = TEST_SCORES)) + 
-  geom_jitter(cex = .8, aes(color = RACE), alpha = 0.5) + 
+  geom_jitter(cex = .8, aes(color = RACE), alpha = 0.5) +
   scale_fill_brewer() +
   geom_smooth(color = "black",fill = "darkgrey", method = "lm", se = FALSE) +
-  facet_wrap(~Region, nrow =  3)+
+  facet_wrap(SEX~Region, nrow =  3)+
   labs(x = "Instruction Expenditure", y = "Test Scores", title = "How School Expenditures Impacts Test Scores") +
   ggtitle("How School Expenditures Impacts Test Scores") +
   xlab("Instruction Expenditure") + ylab("Test Scores") +
-  theme(text=element_text(size=10, family="Times"), legend.position = "right") 
-
-plot1 + scale_colour_brewer(palette = "Set2") 
-```
-
-```{r}
-schools_sample <- schools_clean %>%
-  sample_n(20000, na.rm = F) %>%
-  filter(SEX != "All")
-
-plot2 <- schools_sample %>% 
-  ggplot(aes(x = INSTRUCTION_EXPENDITURE, y = TEST_SCORES)) + 
-  geom_jitter(cex = .8, aes(color = SEX)) + 
-  scale_fill_brewer() +
-  geom_smooth(color = "black",fill = "darkgrey", method = "lm", se = FALSE) +
-  facet_wrap(~Region, nrow =  3)+
-  labs(x = "Instruction Expenditure", y = "Test Scores", title = "How School Expenditures Impacts Test Scores") +
-  ggtitle("How School Expenditures Impacts Test Scores") +
-  xlab("Instruction Expenditure") + ylab("Test Scores") +
-  theme(text=element_text(size=10, family="Times"), legend.position = "right") 
-
-plot2 + scale_colour_brewer(palette = "Set2") 
+  theme(text=element_text(size=10, family="Times"), legend.position = "right") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
 ```
 
 
@@ -181,35 +161,14 @@ loadfonts(device = "win")
 schools_clean %>%
   ggplot(aes(x = TEST_SCORES, fill = RACE)) + 
   geom_boxplot() + 
-  facet_wrap(TEST~SEX) + 
+  facet_wrap(SEX~TEST, nrow = 3) + 
   theme(panel.spacing = unit(0.1, "lines")) + 
   theme(panel.grid.minor = element_line(colour = "white", size = 1)) +
   labs(x = "Test Scores", title = "Distribution of Mathematics and Reading Test Scores by Sex and Race", y = "") +
-  annotate("text", x = 150, y = -0.33, label = "All", color = "black", size = 3) +
+  # annotate("text", x = 150, y = -0.33, label = "All", color = "black", size = 3) +
   scale_fill_manual(values = cdPalette) +
   theme(text = element_text(size = 12,  family = "serif")) +
   theme(axis.ticks = element_blank(), axis.text.y = element_blank())
-```
-
-```{r}
-schools_clean %>%
-  ggplot(aes(x= SEX, y = TEST_SCORES, color = SEX)) + 
-  geom_jitter(alpha = 0.2) +
-  geom_boxplot(alpha = 0.8) + 
-  labs(y= "Test Score", title = "Distribution of Test Scores by Sex") + 
-  scale_colour_manual(values = c("Dark Green", "Pink", "Light Blue")) + 
-  theme(
-    plot.title = element_text(hjust = 0.5),
-    axis.text.x = element_blank(),
-    axis.ticks.x = element_blank(),
-    panel.grid.major = element_blank(),
-    axis.title.x = element_blank(),
-    legend.position = "none"
-    ) +
-  annotate("text", x = 3, y = 177, label = "Male") + 
-  annotate("text", x = 2, y = 180, label = "Female") + 
-  annotate("text", x = 1, y = 170, label = "All") + 
-  facet_wrap(~TEST)
 ```
 
 
@@ -219,7 +178,7 @@ schools_clean %>%
 schools_clean %>%
   ggplot(aes(x = YEAR, y = TEST_SCORES)) +
   geom_boxplot() +
-  facet_wrap(~Region) +
+  facet_wrap(Region~SEX, nrow = 5) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   scale_x_discrete(guide = guide_axis(n.dodge=2))
 ```
