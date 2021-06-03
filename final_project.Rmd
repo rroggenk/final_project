@@ -15,9 +15,10 @@ library(kableExtra)
 library(grid)
 library(extrafont)
 library(broom)
+library(gganimate)
 ```
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 US_schools <- read_excel("US_schools_data.xlsx")
 ```
 
@@ -49,7 +50,7 @@ The PRIMARY_KEY column contains information for both the state and the year of t
 
 Hint: The word() function is quite helpful here!
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 #Split the year from the state
 year_state<- US_schools$PRIMARY_KEY
 x <- str_replace_all(year_state, "_", " ")
@@ -69,7 +70,7 @@ The grade (04, 08), race (AM, AS, BL, HI, HP, TR, WH), sex (A, F, M), and test (
 
 Hint: the names_sep argument in pivot_longer() is very helpful here!
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 schools_clean <- schools_clean %>%
   pivot_longer(8:47, names_to = c("GRADE", "RACE", "SEX", "TEST"), names_sep ="_", values_to = "TEST_SCORES")
 ```
@@ -86,7 +87,7 @@ regions <-
     Region = c("Northeast", "Northeast", "Northeast", "Northeast", "Northeast", "Northeast", "Northeast", "Northeast", "Northeast", "Northeast", "Northeast", "Southeast", "Southeast", "Southeast", "Southeast", "Southeast", "Southeast", "Southeast", "Southeast", "Southeast", "Southeast", "Southeast", "Southeast", "Midwest", "Midwest", "Midwest", "Midwest", "Midwest", "Midwest", "Midwest", "Midwest", "Midwest", "Midwest", "Midwest", "Midwest", "Southwest", "Southwest", "Southwest", "Southwest", "West", "West", "West", "West", "West", "West", "West", "West", "West", "West", "West", "Southeast", "Other", "Other", "Other", "Other"))
 ```
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 schools_clean <- 
   schools_clean %>%
   left_join(regions, by = "STATE") %>%
@@ -99,17 +100,15 @@ Feel free to clean up the values of these variables! Keep in mind that these are
 
 You should also consider what variables you want to be factors, and if there are specific orderings that you would like for them to be displayed in for your visualizations!
 
-```{r}
-
+```{r, message = FALSE, warning = FALSE}
 sex_fct <- schools_clean$SEX
 
 sex_fct <- fct_recode(sex_fct, All = "A", Male = "M", Female = "F")
 
 schools_clean <- schools_clean %>% mutate(SEX = sex_fct)
-
 ```
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 schools_clean <- schools_clean %>% mutate(GRADE = str_extract(GRADE, "[1-9]"))
 ```
 
@@ -153,7 +152,7 @@ schools_clean %>%
 
 ##### The distribution of mathematics and reading test scores:
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 cdPalette <- c("#F1c2bc", "#Ffd5b9", "#Ebffb9", "#B9ffd6", "#B9fff8", "#B9bcff", "#Ffb9fe", "#C6bcbc")
 
 loadfonts(device = "win")
@@ -174,13 +173,27 @@ schools_clean %>%
 
 ##### How school instructional expenditures and test scores have changed over time, and how this differs by region
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 schools_clean %>%
   ggplot(aes(x = YEAR, y = TEST_SCORES)) +
   geom_boxplot() +
   facet_wrap(Region~SEX, nrow = 5) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   scale_x_discrete(guide = guide_axis(n.dodge=2))
+```
+
+```{r}
+schools_clean %>%
+  mutate(year = as.numeric(YEAR)) %>% 
+  ggplot(aes(x = SEX, y = TEST_SCORES)) + 
+  geom_boxplot() +
+  #scale_color_manual(values = RACE) +
+  #scale_size(range = c(2, 12)) +
+  #scale_x_log10() +
+  facet_wrap(~Region) +
+  labs(title = "Year: {frame_time}", x = "Sex", y = "Test Scores") +
+  transition_time(year) +
+  ease_aes('linear')
 ```
 
 Each of these visualizations should also investigate how these relationships differ based on student race and sex.
@@ -190,7 +203,7 @@ Each of these visualizations should also investigate how these relationships dif
 # Linear Regression
 Fit two simple linear regression models, (1) investigating the relationship between instructional expenditures and mathematics test scores, and (2) investigating the relationship between instructional expenditures and reading test scores.
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 expend_math <- schools_clean %>% filter(TEST == "MATHEMATICS") %>% lm(TEST_SCORES ~ INSTRUCTION_EXPENDITURE, data = .)
 
 expend_reading <- schools_clean %>% filter(TEST == "READING") %>% lm(TEST_SCORES ~ INSTRUCTION_EXPENDITURE, data = .)
@@ -202,14 +215,14 @@ For which test does instructional expenditures account for a larger proportion o
 
 
 ##### Relationship between instructional expenditures and *mathematics* test scores 
-```{r MathReg}
+```{r, message = FALSE, warning = FALSE}
 summary(expend_math)
 ```
 
 
 ##### Relationship between instructional expenditures and *reading* test scores 
 
-```{r ReadingReg}
+```{r, message = FALSE, warning = FALSE}
 summary(expend_reading)
 ```
 
@@ -221,7 +234,7 @@ From the two models that we created, the math model resulted in instruction expe
 ### Both Tests
 Rather than having separate models, one for reading and one for mathematics, we can instead fit one regression model that includes test as an explanatory variable.
 
-```{r MLR}
+```{r, message = FALSE, warning = FALSE}
 schools_clean  %>% 
   lm(
     TEST_SCORES ~ INSTRUCTION_EXPENDITURE + TEST, data = .
@@ -238,7 +251,7 @@ Alright, now that we’ve got a “good” starting model, we can start to add v
 
 Include year as a second explanatory variable in your model. How much additional variability in test scores were you able to explain by including year?
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 schools_clean  %>% mutate(YEAR = as.numeric(YEAR)) %>% 
   lm(TEST_SCORES ~ INSTRUCTION_EXPENDITURE + TEST + YEAR  , data = .) %>%
   summary()
@@ -252,7 +265,7 @@ This is where adjusted R2 comes in. By “adjusting” the R2, we are essentiall
 
 Include additional variables in your regression and see how much variability in test scores your model can account for. Use adjusted R2 to decide on what final model your group believes is the “best.”
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 final_model <- schools_clean  %>% 
   mutate(YEAR = as.numeric(YEAR)) %>% 
   lm(
@@ -264,7 +277,7 @@ summary(final_model)
 
 With your final model, make a visualization that explores the relationships accounted for in your model.
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 # creating a dataset that removes na values to match the number of observations with the regressions.
 schools_model <- schools_clean %>% 
   filter(!is.na(TEST_SCORES)) %>% 
@@ -275,7 +288,7 @@ schools_model <- schools_clean %>%
 
 With your chosen model, generate predictions using the predict() function. Then, add random errors to the predictions, using the residual standard error estimated from the linear regression model (acquired with sigma()).
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 # saving the predicted values and the standard deviation
 model_pred <- predict(final_model)
 model_sig <- sigma(final_model)
@@ -284,7 +297,7 @@ model_sig <- sigma(final_model)
 Tip: Measure the R-squared between expected vs observed values, SSE, and RMSE
 
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 noise <- function(x, mean = 0, sd){
   n <- length(x)
   new_data <- x + rnorm(n, mean, sd)
@@ -292,7 +305,7 @@ noise <- function(x, mean = 0, sd){
 }
 ```
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 schools_model <- schools_model %>% 
   mutate(
     predicted = noise(model_pred, sd = model_sig)
@@ -303,7 +316,7 @@ schools_model <- schools_model %>%
 Now, compare these simulated observations to the observed data. Generate the same plot of the relationships modeled by the linear regression, for the simulated data (that you made at the end of Part One).
 Plot the visualization of the observed data and the simulated data side-by-side. Discuss how the simulated data are similar and / or different to the observed data.
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 
 schools_model %>% 
   ggplot(aes(INSTRUCTION_EXPENDITURE, TEST_SCORES, color = TEST, linetype = GRADE)) + 
@@ -321,7 +334,7 @@ schools_model %>%
 ```
 
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 nsims <- 1000
 
 sims <- map_dfc(1:nsims,
@@ -330,7 +343,7 @@ sims <- schools_model %>%
   select(TEST_SCORES) %>% 
   bind_cols(sims)
 ```
-```{r}
+```{r, message = FALSE, warning = FALSE}
 obs_vs_sim <- function(df){
   lm(penguins$bill_length_mm ~ x)
 }
@@ -343,14 +356,14 @@ sim_r_sq <- sims %>%
 sim_r_sq <- sim_r_sq[names(sim_r_sq) != "bill_length_mm"]
 ```
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 tibble(sims = sim_r_sq) %>% 
   ggplot(aes(x = sims)) + 
   geom_histogram(binwidth = 0.0105)
 ```
 
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 sim_r_sq %>% ggplot(aes(sim_r_sq)) + geom_density() + xlim(0.7, 0.73)
 ```
 
