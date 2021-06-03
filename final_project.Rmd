@@ -16,6 +16,12 @@ library(grid)
 library(extrafont)
 library(broom)
 library(gganimate)
+library(gapminder)
+library(transformr)
+library(png)
+library(plotly)
+library(gifski)
+library(animation)
 ```
 
 ```{r, message = FALSE, warning = FALSE}
@@ -173,28 +179,44 @@ schools_clean %>%
 
 ##### How school instructional expenditures and test scores have changed over time, and how this differs by region
 
-```{r, message = FALSE, warning = FALSE}
-schools_clean %>%
-  ggplot(aes(x = YEAR, y = TEST_SCORES)) +
-  geom_boxplot() +
-  facet_wrap(Region~SEX, nrow = 5) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  scale_x_discrete(guide = guide_axis(n.dodge=2))
+```{r}
+plot1 <- schools_clean %>% 
+  filter(!is.na(TEST_SCORES)) %>%
+  filter(!is.na(INSTRUCTION_EXPENDITURE)) %>%
+  filter(!is.na(YEAR)) %>%
+  group_by(YEAR) %>%
+  ggplot(aes(x = INSTRUCTION_EXPENDITURE, y = TEST_SCORES)) + 
+  geom_jitter(cex = .8, aes(color = Region), show.legend = FALSE) + 
+  scale_fill_brewer() +
+  facet_wrap(~Region, nrow =  3)+
+  labs(x = "Instruction Expenditure", y = "Test Scores", title = "How School Expenditures Impacts Test Scores") +
+  labs(title = "Year: {frame_time}", x = "Instruction Expenditure", y = "Test Scores") +
+  transition_time(as.integer(YEAR)) +
+  ease_aes('linear') + 
+  scale_colour_brewer(palette = "Set2") 
+
+files <- animate(plot1)
+
+files <- as.vector(files)
+
+gifski(files, gif_file = "animation.gif", width = 800, height = 600, delay = 0.5, loop = TRUE, progress = TRUE)
 ```
 
+
+Reference: https://plotly.com/ggplot2/animations/
 ```{r}
-schools_clean %>%
-  mutate(year = as.numeric(YEAR)) %>% 
-  ggplot(aes(x = SEX, y = TEST_SCORES)) + 
-  geom_boxplot() +
-  #scale_color_manual(values = RACE) +
-  #scale_size(range = c(2, 12)) +
-  #scale_x_log10() +
-  facet_wrap(~Region) +
-  labs(title = "Year: {frame_time}", x = "Sex", y = "Test Scores") +
-  transition_time(year) +
-  ease_aes('linear')
+p <- schools_clean %>%
+  select(INSTRUCTION_EXPENDITURE,TEST_SCORES,YEAR, Region) %>%
+  filter(!is.na(TEST_SCORES)) 
+
+q <- ggplot(p, aes(x = INSTRUCTION_EXPENDITURE, y = TEST_SCORES, color = Region)) +
+  geom_point(aes(frame = as.integer(YEAR), alpha = 0.3))
+
+fig <- ggplotly(q)
+
+fig
 ```
+
 
 Each of these visualizations should also investigate how these relationships differ based on student race and sex.
 
@@ -334,36 +356,34 @@ schools_model %>%
 ```
 
 
-```{r, message = FALSE, warning = FALSE}
+```{r}
 nsims <- 1000
-
 sims <- map_dfc(1:nsims,
                 ~tibble(sim = noise(model_pred, sd = model_sig))) 
 sims <- schools_model %>% 
   select(TEST_SCORES) %>% 
   bind_cols(sims)
 ```
-```{r, message = FALSE, warning = FALSE}
-obs_vs_sim <- function(df){
-  lm(penguins$bill_length_mm ~ x)
-}
 
+```{r}
+obs_vs_sim <- function(df){
+  lm(schools_model$TEST_SCORES ~ x)
+}
 sim_r_sq <- sims %>% 
   map( ~lm(TEST_SCORES ~ .x, data = sims)) %>% 
   map(glance) %>% 
-  map_dbl(~.$r.squared) %>% data.frame()
-
-sim_r_sq <- sim_r_sq[names(sim_r_sq) != "bill_length_mm"]
+  map_dbl(~.$r.squared) 
 ```
 
-```{r, message = FALSE, warning = FALSE}
-tibble(sims = sim_r_sq) %>% 
-  ggplot(aes(x = sims)) + 
-  geom_histogram(binwidth = 0.0105)
+```{r}
+is.list(sim_r_sq)
 ```
 
+```{r}
+sim_r_sq <- as.data.frame(sim_r_sq)
+```
 
-```{r, message = FALSE, warning = FALSE}
+```{r}
 sim_r_sq %>% ggplot(aes(sim_r_sq)) + geom_density() + xlim(0.7, 0.73)
 ```
 
