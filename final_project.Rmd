@@ -149,10 +149,12 @@ schools_clean %>%
   geom_smooth(color = "black",fill = "darkgrey", method = "lm", se = FALSE) +
   facet_wrap(SEX~Region, nrow =  3)+
   labs(x = "Instruction Expenditure", y = "Test Scores", title = "How School Expenditures Impacts Test Scores") +
-  ggtitle("How School Expenditures Impacts Test Scores") +
+  ggtitle("How School Expenditures Impact Test Scores") +
   xlab("Instruction Expenditure") + ylab("Test Scores") +
   theme(text=element_text(size=10, family="Times"), legend.position = "right") +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+  theme(axis.text.x = element_text(size = 7, angle = 90, vjust = 0.5, hjust=1)) +
+  scale_x_continuous(labels = scales::comma) +
+  theme(text = element_text(size = 12,  family = "serif")) 
 ```
 
 
